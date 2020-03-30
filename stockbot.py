@@ -29,9 +29,9 @@ TZ = timezone('America/New_York')
 
 api = tradeapi.REST('PKJUK5SQ6REUFTCV7QJC', 'dsm/Ywauqgx8YUEZJXa/lNREMds6fly745P3FT13', 'https://paper-api.alpaca.markets')
 
-HIGH_PRICE = 100
-LOW_PRICE = 20
-NUM_STOCKS = 10
+STOCK_MAX_PRICE = 100
+STOCK_MIN_PRICE = 20
+MAX_NUM_STOCKS = 20
 NUM_SHARES = 5
 SELL_PERCENT_GAIN = 3
 
@@ -53,7 +53,7 @@ def get_stock_price(data):
 def get_closed_orders(stock_picks):
     closed_orders = api.list_orders(
         status='closed',
-        limit=NUM_STOCKS
+        limit=MAX_NUM_STOCKS
     )
     closed_orders_list = []
     for stock in stock_picks:
@@ -103,6 +103,7 @@ def main():
         print('Account is currently restricted from trading.')
         sys.exit(0)
 
+    equity = START_EQUITY
 
     while True:
 
@@ -178,7 +179,7 @@ def main():
                 except Exception:
                     pass
 
-                if stock_price >= HIGH_PRICE or stock_price <= LOW_PRICE:
+                if stock_price > STOCK_MAX_PRICE or stock_price < STOCK_MIN_PRICE:
                     continue
 
                 change_low_to_market_price = round(stock_price - stock_low, 2)
@@ -195,7 +196,7 @@ def main():
             elif tradealgo == 'rating':
                 biggest_movers = sorted(stock_info, key = lambda i: i['rating'], reverse = True)
 
-            stock_picks = biggest_movers[0:NUM_STOCKS]
+            stock_picks = biggest_movers[0:MAX_NUM_STOCKS]
             print('\n')
 
             print(datetime.now(tz=TZ).isoformat())
@@ -216,7 +217,6 @@ def main():
             bought_stocks = []
 
             buy_price = 0
-            equity = START_EQUITY
             while True:
                 for stock in stock_picks:
                     already_bought = False
@@ -245,38 +245,29 @@ def main():
 
                     # buy the stock if there are 5 records of it and it's gone up and if we have
                     # enough equity left to buy
-                    if num_prices >= 5 and went_up > went_down and equity >= stock_price_buy:
-                        # determine max number of shares we can buy based on current equity
-                        num_buy_shares = NUM_SHARES
-                        buy_stock = False
-                        while num_buy_shares > 0:
-                            if equity >= stock_price_buy * num_buy_shares:
-                                buy_stock = True
-                                break
-                            else:
-                                num_buy_shares -= 1
-                        if buy_stock:
-                            buy_time = datetime.now(tz=TZ).isoformat()
-                            print(buy_time)
-                            api.submit_order(
-                                symbol=stock['symbol'],
-                                qty=num_buy_shares,
-                                side='buy',
-                                type='limit',
-                                limit_price=stock_price_buy,
-                                time_in_force='day'
-                            )
-                            print('placed buy order of stock {} ({}) for ${} (shares {}) (vol {})'.format(
-                                stock['symbol'], stock['company'], stock_price_buy, num_buy_shares, stock['volume']))
-                            buy_price += stock_price_buy * num_buy_shares
-                            stock_bought_prices.append([stock['symbol'], stock_price_buy, num_buy_shares, buy_time])
-                            bought_stocks.append(stock)
-                            equity -= buy_price
+                    if num_prices >= 5 and went_up > went_down and equity >= stock_price_buy * NUM_SHARES:
+                        buy_time = datetime.now(tz=TZ).isoformat()
+                        print(buy_time)
+                        api.submit_order(
+                            symbol=stock['symbol'],
+                            qty=NUM_SHARES,
+                            side='buy',
+                            type='limit',
+                            limit_price=stock_price_buy,
+                            time_in_force='day'
+                        )
+                        print('placed buy order of stock {} ({}) for ${} (vol {})'.format(
+                            stock['symbol'], stock['company'], stock_price_buy, stock['volume']))
+                        buy_price += stock_price_buy * NUM_SHARES
+                        stock_bought_prices.append([stock['symbol'], stock_price_buy, buy_time])
+                        bought_stocks.append(stock)
+                        equity -= buy_price
                     
                     stock_prices.append([stock['symbol'], stock_price_buy])
 
                 # sleep and check prices again after 2 min if time is before 11:00am EST
-                if len(stock_bought_prices) == NUM_STOCKS or \
+                if len(stock_bought_prices) == MAX_NUM_STOCKS or \
+                    equity == 0 or \
                     (datetime.now(tz=TZ).hour == 11 and datetime.now(tz=TZ).minute >= 0):  # 11:00am EST
                     break
                 else:
@@ -400,24 +391,23 @@ def main():
                             and datetime.now(tz=TZ).minute >= 30):  # 3:30pm EST:
                             stockinfo = [ x for x in stock_bought_prices if x[0] is stock['symbol'] ]
                             stock_price_buy = stockinfo[0][1]
-                            stock_buy_shares = stockinfo[0][2]
-                            buy_time = stockinfo[0][3]
+                            buy_time = stockinfo[0][2]
                             diff = round(stock_price_sell - stock_price_buy, 2)
                             change_perc = round((stock_price_sell - stock_price_buy) / stock_price_buy * 100, 2)
                             sell_time = datetime.now(tz=TZ).isoformat()
                             print(sell_time)
                             api.submit_order(
                                 symbol=stock['symbol'],
-                                qty=stock_buy_shares,
+                                qty=NUM_SHARES,
                                 side='sell',
                                 type='limit',
                                 limit_price=stock_price_sell,
                                 time_in_force='day'
                             )
-                            print('placed sell order of stock {} ({}) for ${} (shares {}) (diff ${} {}%) (vol {})'.format(
-                                stock['symbol'], stock['company'], stock_price_sell, stock_buy_shares, diff, change_perc, 
+                            print('placed sell order of stock {} ({}) for ${} (diff ${} {}%) (vol {})'.format(
+                                stock['symbol'], stock['company'], stock_price_sell, diff, change_perc, 
                                 stock['volume']))
-                            profit += diff * stock_buy_shares
+                            profit += diff * NUM_SHARES
                             stock_data = get_stock_info(stock)
                             stock_volume_end = stock_data['chart']['result'][0]['indicators']['quote'][0]['volume'][0]
                             stock_data_csv.append([stock['symbol'], stock['company'], stock_price_buy, buy_time, 
@@ -464,8 +454,8 @@ def main():
                     writer.writerow(["PERCENT", percent])
                     writer.writerow(["EQUITY", equity])
 
-        print('$ zzz')
-        time.sleep(60)
+        print(datetime.now(tz=TZ).isoformat(), '$ zzz...')
+        time.sleep(30)
 
 
 if __name__ == "__main__":
