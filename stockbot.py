@@ -35,6 +35,8 @@ NUM_STOCKS = 10
 NUM_SHARES = 5
 SELL_PERCENT_GAIN = 3
 
+START_EQUITY = 5000
+
 
 def get_stock_info(stock):
     url = "https://query1.finance.yahoo.com/v8/finance/chart/{0}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(stock)
@@ -214,6 +216,7 @@ def main():
             bought_stocks = []
 
             buy_price = 0
+            equity = START_EQUITY
             while True:
                 for stock in stock_picks:
                     already_bought = False
@@ -240,23 +243,35 @@ def main():
                             else:
                                 went_down += 1
 
-                    # buy the stock if there are 5 records of it and it's gone up
-                    if num_prices >= 5 and went_up > went_down:
-                        buy_time = datetime.now(tz=TZ).isoformat()
-                        print(buy_time)
-                        api.submit_order(
-                            symbol=stock['symbol'],
-                            qty=NUM_SHARES,
-                            side='buy',
-                            type='limit',
-                            limit_price=stock_price_buy,
-                            time_in_force='day'
-                        )
-                        print('placed buy order of stock {} ({}) for ${} (vol {})'.format(
-                            stock['symbol'], stock['company'], stock_price_buy, stock['volume']))
-                        buy_price += stock_price_buy * NUM_SHARES
-                        stock_bought_prices.append([stock['symbol'], stock_price_buy, buy_time])
-                        bought_stocks.append(stock)
+                    # buy the stock if there are 5 records of it and it's gone up and if we have
+                    # enough equity left to buy
+                    if num_prices >= 5 and went_up > went_down and equity >= stock_price_buy:
+                        # determine max number of shares we can buy based on current equity
+                        num_buy_shares = NUM_SHARES
+                        buy_stock = False
+                        while num_buy_shares > 0:
+                            if equity >= stock_price_buy * num_buy_shares:
+                                buy_stock = True
+                                break
+                            else:
+                                num_buy_shares -= 1
+                        if buy_stock:
+                            buy_time = datetime.now(tz=TZ).isoformat()
+                            print(buy_time)
+                            api.submit_order(
+                                symbol=stock['symbol'],
+                                qty=num_buy_shares,
+                                side='buy',
+                                type='limit',
+                                limit_price=stock_price_buy,
+                                time_in_force='day'
+                            )
+                            print('placed buy order of stock {} ({}) for ${} (shares {}) (vol {})'.format(
+                                stock['symbol'], stock['company'], stock_price_buy, num_buy_shares, stock['volume']))
+                            buy_price += stock_price_buy * num_buy_shares
+                            stock_bought_prices.append([stock['symbol'], stock_price_buy, num_buy_shares, buy_time])
+                            bought_stocks.append(stock)
+                            equity -= buy_price
                     
                     stock_prices.append([stock['symbol'], stock_price_buy])
 
@@ -331,6 +346,7 @@ def main():
                         stock_data_csv.append([stock['symbol'], stock['company'], stock_price_buy, buy_time, 
                                                 stock_price_sell, sell_time, diff, change_perc, stock_volume_end - stock['volume']])
                         stock_sold_prices.append([stock['symbol'], stock_price_sell, sell_time])
+                        equity += profit
                     else:
                         print(sell_time)
                         print('stock {} ({}) hasn\'t gone up enough to sell ${} (diff ${} {}%)'.format(
@@ -384,28 +400,30 @@ def main():
                             and datetime.now(tz=TZ).minute >= 30):  # 3:30pm EST:
                             stockinfo = [ x for x in stock_bought_prices if x[0] is stock['symbol'] ]
                             stock_price_buy = stockinfo[0][1]
-                            buy_time = stockinfo[0][2]
+                            stock_buy_shares = stockinfo[0][2]
+                            buy_time = stockinfo[0][3]
                             diff = round(stock_price_sell - stock_price_buy, 2)
                             change_perc = round((stock_price_sell - stock_price_buy) / stock_price_buy * 100, 2)
                             sell_time = datetime.now(tz=TZ).isoformat()
                             print(sell_time)
                             api.submit_order(
                                 symbol=stock['symbol'],
-                                qty=NUM_SHARES,
+                                qty=stock_buy_shares,
                                 side='sell',
                                 type='limit',
                                 limit_price=stock_price_sell,
                                 time_in_force='day'
                             )
-                            print('placed sell order of stock {} ({}) for ${} (diff ${} {}%) (vol {})'.format(
-                                stock['symbol'], stock['company'], stock_price_sell, diff, change_perc, 
+                            print('placed sell order of stock {} ({}) for ${} (shares {}) (diff ${} {}%) (vol {})'.format(
+                                stock['symbol'], stock['company'], stock_price_sell, stock_buy_shares, diff, change_perc, 
                                 stock['volume']))
-                            profit += diff * NUM_SHARES
+                            profit += diff * stock_buy_shares
                             stock_data = get_stock_info(stock)
                             stock_volume_end = stock_data['chart']['result'][0]['indicators']['quote'][0]['volume'][0]
                             stock_data_csv.append([stock['symbol'], stock['company'], stock_price_buy, buy_time, 
                                                     stock_price_sell, sell_time, diff, change_perc, stock_volume_end - stock['volume']])
                             stock_sold_prices.append([stock['symbol'], stock_price_sell, sell_time])
+                            equity += profit
 
                     # sleep and check prices again after 2 min if time is before 4:00pm EST
                     if len(stock_sold_prices) == len(bought_stocks) or \
@@ -420,16 +438,17 @@ def main():
                 print('Recent closed orders: {}'.format(get_closed_orders(stock_picks)))
 
                 if profit > 0:
-                    t = 'made'
+                    t = '*** MADE'
                 else:
-                    t = 'lost'
+                    t = '*** LOST'
                 profit = round(profit, 2)
                 print('{} ${}'.format(t, profit))
                 price_sold = round(buy_price + profit, 2)
                 percent = round((price_sold - buy_price) / buy_price * 100, 2)
+                equity = round(equity, 2)
                 print(datetime.now(tz=TZ).isoformat())
-                print('percent {}%'.format(percent))
-                print('balance ${}'.format(price_sold))
+                print('*** PERCENT {}%'.format(percent))
+                print('*** EQUITY ${}'.format(equity))
 
                 # write csv
 
@@ -441,6 +460,9 @@ def main():
                     writer = csv.writer(f)
                     for row in stock_data_csv:
                         writer.writerow(row)
+                    writer.writerow([])
+                    writer.writerow(["PERCENT", percent])
+                    writer.writerow(["EQUITY", equity])
 
         print('$ zzz')
         time.sleep(60)
