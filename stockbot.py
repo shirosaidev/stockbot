@@ -7,7 +7,7 @@ largest movers (based on open/close $) and buy those stocks
 if they are going up. At the end of the market day, sell 
 any purchased stocks.
 
-Copyright (C) Chris Park 2020
+Copyright (C) Chris Park 2020. All rights reserved.
 """
 
 import os, sys
@@ -92,7 +92,7 @@ def main():
             sys.exit(1)
     except IndexError:
         print('required arg missing, use rating or lowtomarket')
-        sys.exit(1)
+        sys.exit(0)
     print('Trade algo: {}'.format(tradealgo))
 
     # Get our account information.
@@ -385,7 +385,7 @@ def main():
 
                         stock_prices.append([stock['symbol'], stock_price_sell])
 
-                        # sell the stock if there are 10 records of it and it's gone down
+                        # sell the stock if there are 15 records of it and it's gone down
                         # or sell if it's the end of the day
                         if (num_prices >= 15 and went_down > went_up) or (datetime.now(tz=TZ).hour == 15 \
                             and datetime.now(tz=TZ).minute >= 30):  # 3:30pm EST:
