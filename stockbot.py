@@ -168,17 +168,23 @@ def main():
                 data = get_stock_info(stock)
 
                 try:
+                    stock_high = round(data['chart']['result'][0]['indicators']['quote'][0]['high'][1], 2)
+                except Exception:
                     stock_high = round(data['chart']['result'][0]['indicators']['quote'][0]['high'][0], 2)
 
+                try:
+                    stock_low = round(data['chart']['result'][0]['indicators']['quote'][0]['low'][1], 2)
+                except Exception:
                     stock_low = round(data['chart']['result'][0]['indicators']['quote'][0]['low'][0], 2)
 
-                    change_low_to_high = round(stock_high - stock_low, 2)
+                change_low_to_high = round(stock_high - stock_low, 2)
 
-                    stock_price = get_stock_price(data)
+                stock_price = get_stock_price(data)
 
-                    stock_volume = data['chart']['result'][0]['indicators']['quote'][0]['volume'][0]
+                try:
+                    stock_volume = data['chart']['result'][0]['indicators']['quote'][0]['volume'][1]
                 except Exception:
-                    pass
+                    stock_volume = data['chart']['result'][0]['indicators']['quote'][0]['volume'][0]
 
                 if stock_price > STOCK_MAX_PRICE or stock_price < STOCK_MIN_PRICE:
                     continue
@@ -289,9 +295,7 @@ def main():
 
             stock_sold_prices = []
 
-            profit = 0
-
-            stock_data_csv = [['ticker', 'company', 'buy', 'buy time', 'sell', 'sell time', 'profit', 'percent', 'stock vol sod', 'stock vol sell']]
+            stock_data_csv = [['ticker', 'company', 'buy', 'buy time', 'sell', 'sell time', 'profit', 'percent', 'vol sod', 'vol sell']]
 
             print(datetime.now(tz=TZ).isoformat())
             print('selling stock if it goes up by {}%...'.format(SELL_PERCENT_GAIN))
@@ -326,16 +330,17 @@ def main():
                             type='market',
                             time_in_force='day'
                         )
+                        stock_data = get_stock_info(stock['symbol'])
+                        stock_vol_now = stock_data['chart']['result'][0]['indicators']['quote'][0]['volume'][0]
                         print('placed sell order of stock {} ({}) for ${} (diff ${} {}%) (vol {})'.format(
-                            stock['symbol'], stock['company'], stock_price_sell, diff, 
-                            change_perc, stock['volume']))
-                        profit += diff * NUM_SHARES
+                            stock['symbol'], stock['company'], stock_price_sell, diff, change_perc, stock_vol_now))
+                        sell_price = stock_price_sell * NUM_SHARES
                         stock_data = get_stock_info(stock['symbol'])
                         stock_vol_now = stock_data['chart']['result'][0]['indicators']['quote'][0]['volume'][0]
                         stock_data_csv.append([stock['symbol'], stock['company'], stock_price_buy, buy_time, 
                                                 stock_price_sell, sell_time, diff, change_perc, stock['volume'], stock_vol_now])
                         stock_sold_prices.append([stock['symbol'], stock_price_sell, sell_time])
-                        equity += profit
+                        equity += sell_price
                     else:
                         print(sell_time)
                         print('stock {} ({}) hasn\'t gone up enough to sell ${} (diff ${} {}%)'.format(
@@ -438,6 +443,10 @@ def main():
                     writer.writerow([])
                     writer.writerow(["PERCENT", percent])
                     writer.writerow(["EQUITY", equity])
+
+                # set equity back to start value to not reinvest any gains
+                if equity > START_EQUITY:
+                    equity = START_EQUITY
 
         print(datetime.now(tz=TZ).isoformat(), '$ zzz...')
         time.sleep(60)
