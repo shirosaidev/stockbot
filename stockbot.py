@@ -63,12 +63,19 @@ def get_closed_orders(stock_picks):
 
 
 def get_nyse_tickers():
-    nasdaqlist = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt"
-    urllib.request.urlretrieve(nasdaqlist, 'nasdaqlisted.txt')
+    nasdaqlist_url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt"
+    nasdaqlist_file = "nasdaqlisted.txt"
+    if os.path.exists(nasdaqlist_file):
+        age_in_sec = time.time() - os.path.getmtime(nasdaqlist_file)
+        if age_in_sec > 604800:  # 1 week
+            os.remove(nasdaqlist_file)
+            urllib.request.urlretrieve(nasdaqlist_url, nasdaqlist_file)
+    else:
+        urllib.request.urlretrieve(nasdaqlist_url, nasdaqlist_file)
     nyse_tickers = []
-    with open('nasdaqlisted.txt', 'r') as csvfile:
-        spamreader = csv.reader(csvfile, delimiter='|', quotechar='"')
-        for row in spamreader:
+    with open(nasdaqlist_file, 'r') as csvfile:
+        filereader = csv.reader(csvfile, delimiter='|', quotechar='"')
+        for row in filereader:
             nyse_tickers.append(row[0])
     del nyse_tickers[0]
     del nyse_tickers[-1]
