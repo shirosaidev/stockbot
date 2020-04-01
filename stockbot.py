@@ -63,8 +63,8 @@ def get_closed_orders(stock_picks):
 
 
 def get_nyse_tickers():
-    nasdaqlist_url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt"
-    nasdaqlist_file = "nasdaqlisted.txt"
+    nasdaqlist_url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqtraded.txt"
+    nasdaqlist_file = "nasdaqtraded.txt"
     if os.path.exists(nasdaqlist_file):
         age_in_sec = time.time() - os.path.getmtime(nasdaqlist_file)
         if age_in_sec > 604800:  # 1 week
