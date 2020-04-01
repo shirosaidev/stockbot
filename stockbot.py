@@ -439,9 +439,9 @@ def main():
 
                 # write csv
 
-                now = datetime.now(tz=TZ).isoformat()
+                now = datetime.now(tz=TZ).date().isoformat()
 
-                f = open('stocks_{0}.csv'.format(now), 'w')
+                f = open('stocks_{0}_{1}.csv'.format(tradealgo, now), 'w')
 
                 with f:
                     writer = csv.writer(f)
