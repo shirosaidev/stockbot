@@ -76,7 +76,7 @@ def get_nyse_tickers():
     with open(nasdaqlist_file, 'r') as csvfile:
         filereader = csv.reader(csvfile, delimiter='|', quotechar='"')
         for row in filereader:
-            nyse_tickers.append(row[0])
+            nyse_tickers.append(row[1])
     del nyse_tickers[0]
     del nyse_tickers[-1]
     return nyse_tickers
