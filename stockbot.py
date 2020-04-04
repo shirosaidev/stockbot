@@ -42,6 +42,9 @@ def get_stock_info(stock):
     url = "https://query1.finance.yahoo.com/v8/finance/chart/{0}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(stock)
     r = requests.get(url)
     stock_data = r.json()
+    #print('DEBUG', stock_data)
+    if stock_data['chart']['result'] is None:
+        return None
     return stock_data
 
 
@@ -63,8 +66,8 @@ def get_closed_orders(stock_picks):
 
 
 def get_nyse_tickers():
-    nasdaqlist_url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqtraded.txt"
-    nasdaqlist_file = "nasdaqtraded.txt"
+    nasdaqlist_url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt"
+    nasdaqlist_file = "nasdaqlisted.txt"
     if os.path.exists(nasdaqlist_file):
         age_in_sec = time.time() - os.path.getmtime(nasdaqlist_file)
         if age_in_sec > 604800:  # 1 week
@@ -76,7 +79,7 @@ def get_nyse_tickers():
     with open(nasdaqlist_file, 'r') as csvfile:
         filereader = csv.reader(csvfile, delimiter='|', quotechar='"')
         for row in filereader:
-            nyse_tickers.append(row[1])
+            nyse_tickers.append(row[0])
     del nyse_tickers[0]
     del nyse_tickers[-1]
     return nyse_tickers
@@ -94,11 +97,11 @@ def main():
     print(banner)
     try:
         tradealgo = sys.argv[1]
-        if tradealgo not in ['rating', 'lowtomarket']:
-            print('required arg missing, use rating or lowtomarket')
+        if tradealgo not in ['rating', 'lowtomarket', 'moved']:
+            print('required arg missing, use rating, lowtomarket, or moved')
             sys.exit(1)
     except IndexError:
-        print('required arg missing, use rating or lowtomarket')
+        print('required arg missing, use rating, lowtomarket, or moved')
         sys.exit(0)
     print('Trade algo: {}'.format(tradealgo))
 
@@ -118,8 +121,6 @@ def main():
         if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == 8 \
             and datetime.now(tz=TZ).minute == 0:  # 8:00am EST
 
-            nyse_tickers = get_nyse_tickers()
-
             print(datetime.now(tz=TZ).isoformat())
             print('getting buy and strong buy stocks from Nasdaq.com...')
 
@@ -133,10 +134,20 @@ def main():
             strong_buy_stocks = []
 
             for d in data['data']:
-                # check if stock is in Nasdaq NYSE and not other
-                if d['ticker'] not in nyse_tickers:
-                    print('stock ticker {} not in nyse list'.format(d['ticker']))
+                # Get daily price data for stock ticker over the last 5 trading days.
+                barset = api.get_barset(d['ticker'], 'day', limit=5)
+                if not barset[d['ticker']]:
+                    print('stock ticker {} not found'.format(d['ticker']))
                     continue
+                stock_bars = barset[d['ticker']]
+
+                # See how much stock ticker moved in that timeframe.
+                week_open = stock_bars[0].o
+                week_close = stock_bars[-1].c
+                percent_change = round((week_close - week_open) / week_open * 100, 3)
+
+                print('{} moved {}% over the last 5 days'.format(d['ticker'], percent_change))
+
                 rating = 0
                 if d['analystConsensus'] == 'StrongBuy':
                     rating += 1
@@ -165,14 +176,24 @@ def main():
                 except Exception:
                     pass
                 
-                strong_buy_stocks.append({'ticker': d['ticker'], 'company': d['company'], 'rating': rating})
+                strong_buy_stocks.append({'ticker': d['ticker'], 'company': d['company'], 'rating': rating, 
+                                            'moved': percent_change})
 
             for stock_item in strong_buy_stocks:
                 stock = stock_item['ticker']
+                #print('DEBUG', stock)
                 sys.stdout.write('.')
                 sys.stdout.flush()
 
                 data = get_stock_info(stock)
+                if not data:
+                    print('stock ticker {} not found in yahoo finance'.format(stock))
+                    continue
+                # check which market it's in
+                exchange_name = data['chart']['result'][0]['meta']['exchangeName']
+                if exchange_name not in ['NYQ', 'NMS']:
+                        print('stock ticker {} in different exchange {}'.format(stock, exchange_name))
+                        continue
 
                 try:
                     stock_high = round(data['chart']['result'][0]['indicators']['quote'][0]['high'][1], 2)
@@ -184,7 +205,7 @@ def main():
                 except Exception:
                     stock_low = round(data['chart']['result'][0]['indicators']['quote'][0]['low'][0], 2)
 
-                change_low_to_high = round(stock_high - stock_low, 2)
+                change_low_to_high = round(stock_high - stock_low, 3)
 
                 stock_price = get_stock_price(data)
 
@@ -196,26 +217,31 @@ def main():
                 if stock_price > STOCK_MAX_PRICE or stock_price < STOCK_MIN_PRICE:
                     continue
 
-                change_low_to_market_price = round(stock_price - stock_low, 2)
+                change_low_to_market_price = round(stock_price - stock_low, 3)
 
                 stock_info.append({'symbol': stock, 'company': stock_item['company'], 
                                     'rating': stock_item['rating'], 'market_price': stock_price, 
                                     'low': stock_low, 'high': stock_high, 'volume': stock_volume,
                                     'change_low_to_high': change_low_to_high,
-                                    'change_low_to_market_price': change_low_to_market_price})
+                                    'change_low_to_market_price': change_low_to_market_price,
+                                    'moved': stock_item['moved']})
             
             # sort stocks
             if tradealgo == 'lowtomarket':
                 biggest_movers = sorted(stock_info, key = lambda i: i['change_low_to_market_price'], reverse = True)
             elif tradealgo == 'rating':
                 biggest_movers = sorted(stock_info, key = lambda i: i['rating'], reverse = True)
+            elif tradealgo == 'moved':
+                biggest_movers = sorted(stock_info, key = lambda i: i['moved'], reverse = True)
 
             stock_picks = biggest_movers[0:MAX_NUM_STOCKS]
             print('\n')
 
             print(datetime.now(tz=TZ).isoformat())
             print('today\'s stocks {}'.format(stock_info))
+            print('\n')
             print('today\'s picks {}'.format(stock_picks))
+            print('\n')
 
         # buy stocks
         # check stock prices at 9:30am EST (market open) and continue to check for the next 1.5 hours
