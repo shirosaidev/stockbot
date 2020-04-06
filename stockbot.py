@@ -495,18 +495,26 @@ def main():
                 print('TODAY\'S PROFIT/LOSS')
                 print('********************')
                 total_profit = 0
+                total_buy = 0
+                total_sell = 0
                 n = 0
                 for k, v in todays_buy_sell.items():
                     change_str = '{}{}'.format('+' if v['change']>0 else '', v['change'])
                     print('{} {}%'.format(k, change_str))
                     stock_data_csv.append([k, '', '', '', '', '', '', change_str, '', ''])
                     total_profit += v['change']
+                    total_buy += v['buy']
+                    total_sell += v['sell']
                     n += 1
                 print('-----------')
                 sum_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit, 2))
                 avg_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit/n, 2))
+                buy_str = '${}'.format(round(total_buy, 2))
+                sell_str = '${}'.format(round(total_sell, 2))
                 print('*** SUM {}'.format(sum_str))
                 print('*** AVG {}'.format(avg_str))
+                print('*** BUY {}'.format(buy_str))
+                print('*** SELL {}'.format(sell_str))
 
                 # write csv
 
@@ -524,6 +532,11 @@ def main():
                     writer.writerow([])
                     writer.writerow(["SUM", sum_str])
                     writer.writerow(["AVG", avg_str])
+                    writer.writerow([])
+                    writer.writerow(["BUY", buy_str])
+                    writer.writerow(["SELL", sell_str])
+                    
+
 
                 # set equity back to start value to not reinvest any gains
                 if equity > START_EQUITY:
