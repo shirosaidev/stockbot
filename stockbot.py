@@ -486,7 +486,7 @@ def main():
                 print('*** PERCENT {}%'.format(percent))
                 print('*** EQUITY ${}'.format(equity))
 
-                # print out summary
+                # print out summary of today's buy/sells on alpaca
 
                 todays_buy_sell = get_eod_change_percents()
                 print(datetime.now(tz=TZ).isoformat())
@@ -504,9 +504,9 @@ def main():
                     n += 1
                 print('-----------')
                 sum_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit, 2))
-                avg_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit, 2))
-                print('SUM {}'.format(sum_str))
-                print('AVG {}'.format(avg_str))
+                avg_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit/n, 2))
+                print('*** SUM {}'.format(sum_str))
+                print('*** AVG {}'.format(avg_str))
 
                 # write csv
 
