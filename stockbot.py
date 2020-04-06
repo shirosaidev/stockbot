@@ -13,12 +13,14 @@ Copyright (C) Chris Park 2020. All rights reserved.
 import os, sys
 import csv
 import requests
+from requests import ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError
 import urllib.request
 import csv
 import time
 from datetime import datetime
 from pytz import timezone
 from random import randint
+import collections
 import alpaca_trade_api as tradeapi
 
 
@@ -39,8 +41,16 @@ START_EQUITY = 5000
 
 
 def get_stock_info(stock):
-    url = "https://query1.finance.yahoo.com/v8/finance/chart/{0}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(stock)
-    r = requests.get(url)
+    n = randint(1, 2)
+    url = "https://query{0}.finance.yahoo.com/v8/finance/chart/{1}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(n, stock)
+    try:
+        # stagger requests to avoid connection issues to yahoo finance
+        time.sleep(randint(1, 2))
+        r = requests.get(url)
+    except (ConnectTimeout, HTTPError, ReadTimeout, Timeout, ConnectionError) as e:
+        print('CONNECTION ERROR: {}'.format(e))
+        time.sleep(randint(2, 3))
+        get_stock_info(stock)
     stock_data = r.json()
     #print('DEBUG', stock_data)
     if stock_data['chart']['result'] is None:
@@ -53,16 +63,29 @@ def get_stock_price(data):
     return stock_price
 
 
-def get_closed_orders(stock_picks):
+def get_closed_orders():
     closed_orders = api.list_orders(
         status='closed',
-        limit=MAX_NUM_STOCKS
+        limit=100,
+        after=datetime.today().date()
     )
-    closed_orders_list = []
-    for stock in stock_picks:
-        closed_orders = [o for o in closed_orders if o.symbol == stock['symbol']]
-        closed_orders_list.append(closed_orders)
-    return closed_orders_list
+    return closed_orders
+
+
+def get_eod_change_percents():
+    orders = get_closed_orders()
+    todays_buy_sell = {}
+    for order in orders:
+        if order.symbol not in todays_buy_sell:
+            todays_buy_sell[order.symbol] = {'buy': 0, 'sell': 0, 'change': 0}
+        if order.side == 'sell':
+            todays_buy_sell[order.symbol]['sell'] += round(int(order.filled_qty) * float(order.filled_avg_price), 2)
+        elif order.side == 'buy':
+            todays_buy_sell[order.symbol]['buy'] += round(int(order.filled_qty) * float(order.filled_avg_price), 2)
+    for ticker in todays_buy_sell:
+        todays_buy_sell[ticker]['change'] = round((todays_buy_sell[ticker]['sell'] - todays_buy_sell[ticker]['buy']) / 
+                                            todays_buy_sell[ticker]['buy'] * 100, 2)
+    return todays_buy_sell
 
 
 def get_nyse_tickers():
@@ -463,6 +486,28 @@ def main():
                 print('*** PERCENT {}%'.format(percent))
                 print('*** EQUITY ${}'.format(equity))
 
+                # print out summary
+
+                todays_buy_sell = get_eod_change_percents()
+                print(datetime.now(tz=TZ).isoformat())
+                print(todays_buy_sell) 
+                print('********************')
+                print('TODAY\'S PROFIT/LOSS')
+                print('********************')
+                total_profit = 0
+                n = 0
+                for k, v in todays_buy_sell.items():
+                    change_str = '{}{}'.format('+' if v['change']>0 else '', v['change'])
+                    print('{} {}%'.format(k, change_str))
+                    stock_data_csv.append([k, '', '', '', '', '', '', change_str, '', ''])
+                    total_profit += v['change']
+                    n += 1
+                print('-----------')
+                sum_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit, 2))
+                avg_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit, 2))
+                print('SUM {}'.format(sum_str))
+                print('AVG {}'.format(avg_str))
+
                 # write csv
 
                 now = datetime.now(tz=TZ).date().isoformat()
@@ -476,6 +521,9 @@ def main():
                     writer.writerow([])
                     writer.writerow(["PERCENT", percent])
                     writer.writerow(["EQUITY", equity])
+                    writer.writerow([])
+                    writer.writerow(["SUM", sum_str])
+                    writer.writerow(["AVG", avg_str])
 
                 # set equity back to start value to not reinvest any gains
                 if equity > START_EQUITY:
