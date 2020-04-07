@@ -519,8 +519,8 @@ def main():
                 # write csv
 
                 now = datetime.now(tz=TZ).date().isoformat()
-
-                f = open('stocks_{0}_{1}.csv'.format(tradealgo, now), 'w')
+                csv_file = 'stocks_{0}_{1}.csv'.format(tradealgo, now)
+                f = open(csv_file, 'w')
 
                 with f:
                     writer = csv.writer(f)
@@ -535,9 +535,7 @@ def main():
                     writer.writerow([])
                     writer.writerow(["BUY", buy_str])
                     writer.writerow(["SELL", sell_str])
-                    
-
-
+                
                 # set equity back to start value to not reinvest any gains
                 if equity > START_EQUITY:
                     equity = START_EQUITY
