@@ -79,12 +79,14 @@ def get_eod_change_percents():
         if order.symbol not in todays_buy_sell:
             todays_buy_sell[order.symbol] = {'buy': 0, 'sell': 0, 'change': 0}
         if order.side == 'sell':
-            todays_buy_sell[order.symbol]['sell'] += round(int(order.filled_qty) * float(order.filled_avg_price), 2)
+            todays_buy_sell[order.symbol]['sell'] += int(order.filled_qty) * float(order.filled_avg_price)
         elif order.side == 'buy':
-            todays_buy_sell[order.symbol]['buy'] += round(int(order.filled_qty) * float(order.filled_avg_price), 2)
+            todays_buy_sell[order.symbol]['buy'] += int(order.filled_qty) * float(order.filled_avg_price)
     for ticker in todays_buy_sell:
         todays_buy_sell[ticker]['change'] = round((todays_buy_sell[ticker]['sell'] - todays_buy_sell[ticker]['buy']) / 
                                             todays_buy_sell[ticker]['buy'] * 100, 2)
+        todays_buy_sell[ticker]['sell'] = round(todays_buy_sell[ticker]['sell'], 2)
+        todays_buy_sell[ticker]['buy'] = round(todays_buy_sell[ticker]['buy'], 2)
     return todays_buy_sell
 
 
@@ -121,12 +123,21 @@ def main():
     try:
         tradealgo = sys.argv[1]
         if tradealgo not in ['rating', 'lowtomarket', 'moved']:
-            print('required arg missing, use rating, lowtomarket, or moved')
+            print('required arg 1 missing, use rating, lowtomarket, or moved')
             sys.exit(1)
     except IndexError:
-        print('required arg missing, use rating, lowtomarket, or moved')
+        print('required arg 1 missing, use rating, lowtomarket, or moved')
+        sys.exit(0)
+    try:
+        startbuytime = sys.argv[2]
+        if startbuytime not in ['buyatclose', 'buyatopen']:
+            print('required arg 2 missing, use buyatclose, or buyatopen')
+            sys.exit(1)
+    except IndexError:
+        print('required arg 2 missing, use buyatclose, or buyatopen')
         sys.exit(0)
     print('Trade algo: {}'.format(tradealgo))
+    print('Buy time: {}'.format(startbuytime))
 
     # Get our account information.
     account = api.get_account()
@@ -138,11 +149,35 @@ def main():
 
     equity = START_EQUITY
 
+    # times to buy/sell
+
+    if startbuytime == 'buyatopen':
+        buy_sh = 9  # 9:30 AM EST
+        buy_sm = 30
+        buy_eh = 11  # 11:00 AM EST
+        buy_em = 0
+        sell_sh = 11  # 11:00am EST
+        sell_sm = 0
+        sell_eh = 15  # 3:30pm EST
+        sell_em = 30
+    else:  # buy at close
+        buy_sh = 15  # 3:30 PM EST
+        buy_sm = 30
+        buy_eh = 17  # 5:00 PM EST
+        buy_em = 0
+        sell_sh = 9  # 9:30am EST (buy at close)
+        sell_sm = 30
+        sell_eh = 14  # 2:30pm EST
+        sell_em = 30
+
+
     while True:
 
-        # get the best rated buy and strong buy stock from Nasdaq.com and sort them by the best movers the prev day
-        if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == 8 \
-            and datetime.now(tz=TZ).minute == 0:  # 8:00am EST
+        # 30 min before buy time, get the best rated buy and strong buy stock from Nasdaq.com and 
+        # sort them by the best rated stocks using one of the chosen algo
+
+        if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == buy_sh \
+            and datetime.now(tz=TZ).minute == buy_sm - 30:
 
             print(datetime.now(tz=TZ).isoformat())
             print('getting buy and strong buy stocks from Nasdaq.com...')
@@ -265,12 +300,22 @@ def main():
             print('\n')
             print('today\'s picks {}'.format(stock_picks))
             print('\n')
+            if startbuytime == 'buyatclose':
+                print('holding these stocks and selling them tomorrow')
+            print('\n')
+
 
         # buy stocks
+
+        # buy at open
         # check stock prices at 9:30am EST (market open) and continue to check for the next 1.5 hours
         # to see if stock is going down or going up, when the stock starts to go up, buy
-        if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == 9 \
-            and datetime.now(tz=TZ).minute == 30:  # 9:30am EST
+
+        # buy at close
+        # buy stocks at 3:30pm EST and hold until next day
+
+        if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == buy_sh \
+            and datetime.now(tz=TZ).minute == buy_sm:
 
             print(datetime.now(tz=TZ).isoformat())
             print('starting to buy stocks...')
@@ -308,8 +353,16 @@ def main():
 
                     # buy the stock if there are 5 records of it and it's gone up and if we have
                     # enough equity left to buy
+                    # if buying at end of day, ignore record checking to force it to buy
+
+                    if startbuytime == 'buyatclose':
+                        n = 0
+                        went_up = 1
+                        went_down = 0
+                    else:
+                        n = 5
                     buy_price = stock_price_buy * NUM_SHARES
-                    if num_prices >= 5 and went_up > went_down and equity >= buy_price:
+                    if num_prices >= n and went_up > went_down and equity >= buy_price:
                         buy_time = datetime.now(tz=TZ).isoformat()
                         print(buy_time)
                         api.submit_order(
@@ -328,10 +381,10 @@ def main():
                     
                     stock_prices.append([stock['symbol'], stock_price_buy])
 
-                # sleep and check prices again after 2 min if time is before 11:00am EST
+                # sleep and check prices again after 2 min if time is before 11:00am EST / 5:00pm EST (market close)
                 if len(stock_bought_prices) == MAX_NUM_STOCKS or \
                     equity == 0 or \
-                    (datetime.now(tz=TZ).hour == 11 and datetime.now(tz=TZ).minute >= 0):  # 11:00am EST
+                    (datetime.now(tz=TZ).hour == buy_eh and datetime.now(tz=TZ).minute >= buy_em):
                     break
                 else:
                     time.sleep(120)
@@ -339,19 +392,22 @@ def main():
             print(datetime.now(tz=TZ).isoformat())
             print('sent buy orders for {} stocks, market price ${}'.format(len(bought_stocks), round(total_buy_price, 2)))
 
+
         # sell stocks
-        # check stock prices at 11:00am EST and continue to check until 1:00pm EST to
+
+        # check stock prices at 9:30am EST (buy at close) / 11:00am EST and continue to check until 1:00pm EST to
         # see if it goes up by x percent, sell it if it does
         # when the stock starts to go down starting at 1:00pm EST, sell or 
-        # sell at end of day 3:30pm EST
-        if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == 11 \
-            and datetime.now(tz=TZ).minute >= 0:  # 11:00am EST
+        # sell at end of day 2:30pm EST (buy at close) / 3:30pm EST
+        
+        if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == sell_sh \
+            and datetime.now(tz=TZ).minute >= sell_sm:
 
             stock_prices = []
 
             stock_sold_prices = []
 
-            stock_data_csv = [['ticker', 'company', 'buy', 'buy time', 'sell', 'sell time', 'profit', 'percent', 'vol sod', 'vol sell']]
+            stock_data_csv = [['symbol', 'company', 'buy', 'buy time', 'sell', 'sell time', 'profit', 'percent', 'vol sod', 'vol sell']]
 
             print(datetime.now(tz=TZ).isoformat())
             print('selling stock if it goes up by {}%...'.format(SELL_PERCENT_GAIN))
@@ -445,8 +501,8 @@ def main():
 
                         # sell the stock if there are 15 records of it and it's gone down
                         # or sell if it's the end of the day
-                        if (num_prices >= 15 and went_down > went_up) or (datetime.now(tz=TZ).hour == 15 \
-                            and datetime.now(tz=TZ).minute >= 30):  # 3:30pm EST:
+                        if (num_prices >= 15 and went_down > went_up) or (datetime.now(tz=TZ).hour == sell_eh \
+                            and datetime.now(tz=TZ).minute >= sell_em):
                             stockinfo = [ x for x in stock_bought_prices if x[0] is stock['symbol'] ]
                             stock_price_buy = stockinfo[0][1]
                             buy_time = stockinfo[0][2]
@@ -471,9 +527,9 @@ def main():
                             stock_sold_prices.append([stock['symbol'], stock_price_sell, sell_time])
                             equity += sell_price
 
-                    # sleep and check prices again after 2 min if time is before 4:00pm EST
+                    # sleep and check prices again after 2 min if time is before # 3:30pm EST / 2:30pm EST (buy at close)
                     if len(stock_sold_prices) == len(bought_stocks) or \
-                        (datetime.now(tz=TZ).hour == 16 and datetime.now(tz=TZ).minute >= 0):  # 4:00pm EST
+                        (datetime.now(tz=TZ).hour == sell_eh and datetime.now(tz=TZ).minute >= sell_em):
                         break
                     else:
                         time.sleep(120)
@@ -485,6 +541,11 @@ def main():
                 print(datetime.now(tz=TZ).isoformat())
                 print('*** PERCENT {}%'.format(percent))
                 print('*** EQUITY ${}'.format(equity))
+
+                # wait a few minutes for all the final sells and
+                # print an Alpaca stock summary
+                print('waiting for Alpaca report...')
+                time.sleep(120)
 
                 # print out summary of today's buy/sells on alpaca
 
@@ -498,23 +559,27 @@ def main():
                 total_buy = 0
                 total_sell = 0
                 n = 0
+                stock_data_csv.append([])
+                stock_data_csv.append(['symbol', 'buy', 'sell', 'change'])
                 for k, v in todays_buy_sell.items():
                     change_str = '{}{}'.format('+' if v['change']>0 else '', v['change'])
                     print('{} {}%'.format(k, change_str))
-                    stock_data_csv.append([k, '', '', '', '', '', '', change_str, '', ''])
+                    stock_data_csv.append([k, v['buy'], v['sell'], v['change']])
                     total_profit += v['change']
                     total_buy += v['buy']
                     total_sell += v['sell']
                     n += 1
-                print('-----------')
+                print('-------------------')
                 sum_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit, 2))
                 avg_str = '{}{}%'.format('+' if v['change']>0 else '', round(total_profit/n, 2))
                 buy_str = '${}'.format(round(total_buy, 2))
                 sell_str = '${}'.format(round(total_sell, 2))
+                profit_str = '${}'.format(round(total_sell - total_buy, 2))
                 print('*** SUM {}'.format(sum_str))
                 print('*** AVG {}'.format(avg_str))
                 print('*** BUY {}'.format(buy_str))
                 print('*** SELL {}'.format(sell_str))
+                print('*** PROFIT/LOSS {}'.format(profit_str))
 
                 # write csv
 
