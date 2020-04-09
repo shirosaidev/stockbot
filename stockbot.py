@@ -45,11 +45,13 @@ def get_stock_info(stock):
     url = "https://query{0}.finance.yahoo.com/v8/finance/chart/{1}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(n, stock)
     try:
         # stagger requests to avoid connection issues to yahoo finance
-        time.sleep(randint(1, 2))
-        r = requests.get(url)
+        time.sleep(randint(0, 2))
+        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'
+        headers = {'User-Agent': user_agent}
+        r = requests.get(url, headers=headers)
     except (ConnectTimeout, HTTPError, ReadTimeout, Timeout, ConnectionError) as e:
         print('CONNECTION ERROR: {}'.format(e))
-        time.sleep(randint(2, 3))
+        time.sleep(randint(1, 3))
         get_stock_info(stock)
     stock_data = r.json()
     #print('DEBUG', stock_data)
@@ -170,7 +172,7 @@ def main():
         get_stocks_h = 14
         get_stocks_m = 30
         buy_sh = 15  # 3:00 PM EST
-        buy_sm = 0
+        buy_sm = 00
         buy_eh = 16  # 4:00 PM EST
         buy_em = 0
         sell_sh = 9  # 9:30am EST (buy at close)
@@ -194,7 +196,11 @@ def main():
 
             url = "https://www.nasdaq.com/api/v1/screener?marketCap=Large,Medium,Small&analystConsensus=StrongBuy,Buy&page=1&pageSize=100"
 
-            r = requests.get(url)
+            # stagger requests to avoid connection issues to nasdaq.com
+            time.sleep(randint(0, 5))
+            user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'
+            headers = {'User-Agent': user_agent}
+            r = requests.get(url, headers=headers)
             data = r.json()
 
             strong_buy_stocks = []
