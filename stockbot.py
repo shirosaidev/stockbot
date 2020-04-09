@@ -17,7 +17,7 @@ from requests import ReadTimeout, ConnectTimeout, HTTPError, Timeout, Connection
 import urllib.request
 import csv
 import time
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pytz import timezone
 from random import randint
 import collections
@@ -63,17 +63,21 @@ def get_stock_price(data):
     return stock_price
 
 
-def get_closed_orders():
+def get_closed_orders(startbuytime):
+    if startbuytime == 'buyatclose':
+        datestamp = date.today() - timedelta(days=1)
+    else:
+        datestamp = datetime.today().date()
     closed_orders = api.list_orders(
         status='closed',
         limit=100,
-        after=datetime.today().date()
+        after=datestamp
     )
     return closed_orders
 
 
-def get_eod_change_percents():
-    orders = get_closed_orders()
+def get_eod_change_percents(startbuytime):
+    orders = get_closed_orders(startbuytime)
     todays_buy_sell = {}
     for order in orders:
         if order.symbol not in todays_buy_sell:
@@ -152,6 +156,8 @@ def main():
     # times to buy/sell
 
     if startbuytime == 'buyatopen':
+        get_stocks_h = 8
+        get_stocks_m = 30
         buy_sh = 9  # 9:30 AM EST
         buy_sm = 30
         buy_eh = 11  # 11:00 AM EST
@@ -161,23 +167,25 @@ def main():
         sell_eh = 15  # 3:30pm EST
         sell_em = 30
     else:  # buy at close
-        buy_sh = 15  # 3:30 PM EST
-        buy_sm = 30
-        buy_eh = 17  # 5:00 PM EST
+        get_stocks_h = 14
+        get_stocks_m = 30
+        buy_sh = 15  # 3:00 PM EST
+        buy_sm = 0
+        buy_eh = 16  # 4:00 PM EST
         buy_em = 0
         sell_sh = 9  # 9:30am EST (buy at close)
         sell_sm = 30
-        sell_eh = 14  # 2:30pm EST
-        sell_em = 30
+        sell_eh = 14  # 2:00pm EST
+        sell_em = 00
 
 
     while True:
 
-        # 30 min before buy time, get the best rated buy and strong buy stock from Nasdaq.com and 
+        # get the best rated buy and strong buy stock from Nasdaq.com and 
         # sort them by the best rated stocks using one of the chosen algo
 
-        if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == buy_sh \
-            and datetime.now(tz=TZ).minute == buy_sm - 30:
+        if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == get_stocks_h \
+            and datetime.now(tz=TZ).minute == get_stocks_m:
 
             print(datetime.now(tz=TZ).isoformat())
             print('getting buy and strong buy stocks from Nasdaq.com...')
@@ -300,9 +308,6 @@ def main():
             print('\n')
             print('today\'s picks {}'.format(stock_picks))
             print('\n')
-            if startbuytime == 'buyatclose':
-                print('holding these stocks and selling them tomorrow')
-            print('\n')
 
 
         # buy stocks
@@ -312,7 +317,7 @@ def main():
         # to see if stock is going down or going up, when the stock starts to go up, buy
 
         # buy at close
-        # buy stocks at 3:30pm EST and hold until next day
+        # buy stocks at 3:00pm EST and hold until next day
 
         if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == buy_sh \
             and datetime.now(tz=TZ).minute == buy_sm:
@@ -381,7 +386,7 @@ def main():
                     
                     stock_prices.append([stock['symbol'], stock_price_buy])
 
-                # sleep and check prices again after 2 min if time is before 11:00am EST / 5:00pm EST (market close)
+                # sleep and check prices again after 2 min if time is before 11:00am EST / 4:00pm EST (market close)
                 if len(stock_bought_prices) == MAX_NUM_STOCKS or \
                     equity == 0 or \
                     (datetime.now(tz=TZ).hour == buy_eh and datetime.now(tz=TZ).minute >= buy_em):
@@ -391,14 +396,16 @@ def main():
             
             print(datetime.now(tz=TZ).isoformat())
             print('sent buy orders for {} stocks, market price ${}'.format(len(bought_stocks), round(total_buy_price, 2)))
-
+            if startbuytime == 'buyatclose':
+                print('holding these stocks and selling them tomorrow...')
+            print('\n')
 
         # sell stocks
 
         # check stock prices at 9:30am EST (buy at close) / 11:00am EST and continue to check until 1:00pm EST to
         # see if it goes up by x percent, sell it if it does
         # when the stock starts to go down starting at 1:00pm EST, sell or 
-        # sell at end of day 2:30pm EST (buy at close) / 3:30pm EST
+        # sell at end of day 2:00pm EST (buy at close) / 3:30pm EST
         
         if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == sell_sh \
             and datetime.now(tz=TZ).minute >= sell_sm:
@@ -469,7 +476,7 @@ def main():
                 (datetime.now(tz=TZ).hour == 13 and datetime.now(tz=TZ).minute >= 0):  # 1:00pm EST
             
                 print(datetime.now(tz=TZ).isoformat())
-                print('selling any remaining stocks...')
+                print('selling any remaining stocks if they go down, or else sell at end of day...')
 
                 while True:
                     for stock in bought_stocks:
@@ -531,8 +538,7 @@ def main():
                     if len(stock_sold_prices) == len(bought_stocks) or \
                         (datetime.now(tz=TZ).hour == sell_eh and datetime.now(tz=TZ).minute >= sell_em):
                         break
-                    else:
-                        time.sleep(120)
+                    time.sleep(120)
 
                 # sold all stocks or market close
 
@@ -542,14 +548,17 @@ def main():
                 print('*** PERCENT {}%'.format(percent))
                 print('*** EQUITY ${}'.format(equity))
 
-                # wait a few minutes for all the final sells and
+                # wait until end of day for all the final sells and
                 # print an Alpaca stock summary
                 print('waiting for Alpaca report...')
-                time.sleep(120)
+                while True:
+                    if datetime.now(tz=TZ).hour == sell_eh and datetime.now(tz=TZ).minute >= sell_em + 5:
+                        break
+                    time.sleep(60)
 
                 # print out summary of today's buy/sells on alpaca
 
-                todays_buy_sell = get_eod_change_percents()
+                todays_buy_sell = get_eod_change_percents(startbuytime)
                 print(datetime.now(tz=TZ).isoformat())
                 print(todays_buy_sell) 
                 print('********************')
