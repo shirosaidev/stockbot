@@ -41,13 +41,27 @@ START_EQUITY = 5000
 
 
 def get_stock_info(stock):
-    n = randint(1, 2)
-    url = "https://query{0}.finance.yahoo.com/v8/finance/chart/{1}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(n, stock)
+    url = "https://query1.finance.yahoo.com/v8/finance/chart/{}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(stock)
     try:
         # stagger requests to avoid connection issues to yahoo finance
         time.sleep(randint(0, 2))
-        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'
-        headers = {'User-Agent': user_agent}
+        headers = {
+                'authority': 'query1.finance.yahoo.com', 
+                'method': 'GET', 
+                'scheme': 'https',
+                'path': '/v8/finance/chart/{}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance'.format(stock),
+                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                'accept-encoding': 'gzip, deflate, br',
+                'accept-laguage': 'en-US,en;q=0.9',
+                'cache-control': 'no-cache',
+                'pragma': 'no-cache',
+                'sec-fetch-dest': 'document',
+                'sec-fetch-site': 'none',
+                'sec-fetch-user': '?1',
+                'sec-fetch-mode': 'navigate',
+                'upgrade-insecure-requests': '1',
+                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
+                }
         r = requests.get(url, headers=headers)
     except (ConnectTimeout, HTTPError, ReadTimeout, Timeout, ConnectionError) as e:
         print('CONNECTION ERROR: {}'.format(e))
@@ -198,8 +212,22 @@ def main():
 
             # stagger requests to avoid connection issues to nasdaq.com
             time.sleep(randint(0, 5))
-            user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'
-            headers = {'User-Agent': user_agent}
+            headers = {
+                'authority': 'www.nasdaq.com', 
+                'method': 'GET', 
+                'scheme': 'https',
+                'path': '/api/v1/screener?marketCap=Large,Medium,Small&analystConsensus=StrongBuy,Buy&page=1&pageSize=100',
+                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                'accept-encoding': 'gzip, deflate, br',
+                'accept-laguage': 'en-US,en;q=0.9',
+                'cache-control': 'no-cache',
+                'pragma': 'no-cache',
+                'sec-fetch-dest': 'document',
+                'sec-fetch-site': 'none',
+                'sec-fetch-mode': 'navigate',
+                'upgrade-insecure-requests': '1',
+                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
+                }
             r = requests.get(url, headers=headers)
             data = r.json()
 
