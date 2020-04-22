@@ -41,31 +41,31 @@ START_EQUITY = 5000
 
 
 def get_stock_info(stock):
-    url = "https://query1.finance.yahoo.com/v8/finance/chart/{}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(stock)
+    n = randint(1,2)
+    url = "https://query{}.finance.yahoo.com/v8/finance/chart/{}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance".format(n, stock)
+    # stagger requests to avoid connection issues to yahoo finance
+    time.sleep(randint(1, 3))
+    headers = {
+            'authority': 'query1.finance.yahoo.com', 
+            'method': 'GET', 
+            'scheme': 'https',
+            'path': '/v8/finance/chart/{}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance'.format(stock),
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'accept-encoding': 'gzip, deflate, br',
+            'accept-laguage': 'en-US,en;q=0.9',
+            'cache-control': 'max-age=0',
+            'sec-fetch-dest': 'document',
+            'sec-fetch-site': 'none',
+            'sec-fetch-user': '?1',
+            'sec-fetch-mode': 'navigate',
+            'upgrade-insecure-requests': '1',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
+            }
     try:
-        # stagger requests to avoid connection issues to yahoo finance
-        time.sleep(randint(0, 2))
-        headers = {
-                'authority': 'query1.finance.yahoo.com', 
-                'method': 'GET', 
-                'scheme': 'https',
-                'path': '/v8/finance/chart/{}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance'.format(stock),
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                'accept-encoding': 'gzip, deflate, br',
-                'accept-laguage': 'en-US,en;q=0.9',
-                'cache-control': 'no-cache',
-                'pragma': 'no-cache',
-                'sec-fetch-dest': 'document',
-                'sec-fetch-site': 'none',
-                'sec-fetch-user': '?1',
-                'sec-fetch-mode': 'navigate',
-                'upgrade-insecure-requests': '1',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
-                }
         r = requests.get(url, headers=headers)
     except (ConnectTimeout, HTTPError, ReadTimeout, Timeout, ConnectionError) as e:
         print('CONNECTION ERROR: {}'.format(e))
-        time.sleep(randint(1, 3))
+        time.sleep(randint(2, 5))
         get_stock_info(stock)
     stock_data = r.json()
     #print('DEBUG', stock_data)
@@ -431,7 +431,7 @@ def main():
             print(datetime.now(tz=TZ).isoformat())
             print('sent buy orders for {} stocks, market price ${}'.format(len(bought_stocks), round(total_buy_price, 2)))
             if startbuytime == 'buyatclose':
-                print('holding these stocks and selling them tomorrow...')
+                print('holding these stocks and selling them the next market open day...')
             print('\n')
 
         # sell stocks
