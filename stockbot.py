@@ -22,6 +22,7 @@ from pytz import timezone
 from random import randint
 import collections
 import alpaca_trade_api as tradeapi
+from alpaca_trade_api.rest import APIError
 
 
 STOCKBOT_VERSION = '0.1-b.1'
@@ -156,6 +157,21 @@ def get_nasdaq_buystocks():
         time.sleep(randint(2, 5))
         get_nasdaq_buystocks()
     return r.json()
+
+
+def alpaca_order(symbol, side, _type='market', time_in_force='day'):
+    try:
+        api.submit_order(
+            symbol=symbol,
+            qty=NUM_SHARES,
+            side=side,
+            type=_type,
+            time_in_force=time_in_force
+        )
+    except (ConnectTimeout, HTTPError, ReadTimeout, Timeout, ConnectionError, APIError) as e:
+        print('CONNECTION ERROR: {}'.format(e))
+        time.sleep(randint(1, 3))
+        alpaca_order(symbol, side)
 
 
 def main():
@@ -411,13 +427,7 @@ def main():
                     if num_prices >= n and went_up > went_down and equity >= buy_price:
                         buy_time = datetime.now(tz=TZ).isoformat()
                         print(buy_time)
-                        api.submit_order(
-                            symbol=stock['symbol'],
-                            qty=NUM_SHARES,
-                            side='buy',
-                            type='market',
-                            time_in_force='day'
-                        )
+                        alpaca_order(stock['symbol'], side='buy')
                         print('placed buy order of stock {} ({}) for ${} (vol {})'.format(
                             stock['symbol'], stock['company'], stock_price_buy, stock['volume']))
                         total_buy_price += buy_price
@@ -483,13 +493,7 @@ def main():
                     diff = round(stock_price_sell - stock_price_buy, 2)
                     if change_perc >= SELL_PERCENT_GAIN:
                         print(sell_time)
-                        api.submit_order(
-                            symbol=stock['symbol'],
-                            qty=NUM_SHARES,
-                            side='sell',
-                            type='market',
-                            time_in_force='day'
-                        )
+                        alpaca_order(stock['symbol'], side='sell')
                         stock_data = get_stock_info(stock['symbol'])
                         stock_vol_now = stock_data['chart']['result'][0]['indicators']['quote'][0]['volume'][0]
                         print('placed sell order of stock {} ({}) for ${} (diff ${} {}%) (vol {})'.format(
@@ -558,13 +562,7 @@ def main():
                             change_perc = round((stock_price_sell - stock_price_buy) / stock_price_buy * 100, 2)
                             sell_time = datetime.now(tz=TZ).isoformat()
                             print(sell_time)
-                            api.submit_order(
-                                symbol=stock['symbol'],
-                                qty=NUM_SHARES,
-                                side='sell',
-                                type='market',
-                                time_in_force='day'
-                            )
+                            alpaca_order(stock['symbol'], side='sell')
                             stock_data = get_stock_info(stock['symbol'])
                             stock_vol_now = stock_data['chart']['result'][0]['indicators']['quote'][0]['volume'][0]
                             print('placed sell order of stock {} ({}) for ${} (diff ${} {}%) (vol {})'.format(
