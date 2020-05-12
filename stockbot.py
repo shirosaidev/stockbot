@@ -46,7 +46,7 @@ def get_stock_info(stock):
     # stagger requests to avoid connection issues to yahoo finance
     time.sleep(randint(1, 3))
     headers = {
-            'authority': 'query1.finance.yahoo.com', 
+            'authority': 'query{}.finance.yahoo.com'.format(n), 
             'method': 'GET', 
             'scheme': 'https',
             'path': '/v8/finance/chart/{}?region=US&lang=en-US&includePrePost=false&interval=1d&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance'.format(stock),
@@ -68,7 +68,6 @@ def get_stock_info(stock):
         time.sleep(randint(2, 5))
         get_stock_info(stock)
     stock_data = r.json()
-    #print('DEBUG', stock_data)
     if stock_data['chart']['result'] is None:
         return None
     return stock_data
@@ -110,7 +109,7 @@ def get_eod_change_percents(startbuytime):
     return todays_buy_sell
 
 
-def get_nyse_tickers():
+def get_nasdaq_listed():
     nasdaqlist_url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt"
     nasdaqlist_file = "nasdaqlisted.txt"
     if os.path.exists(nasdaqlist_file):
@@ -128,6 +127,35 @@ def get_nyse_tickers():
     del nyse_tickers[0]
     del nyse_tickers[-1]
     return nyse_tickers
+
+
+def get_nasdaq_buystocks():
+    url = "https://www.nasdaq.com/api/v1/screener?marketCap=Large,Medium,Small&analystConsensus=StrongBuy,Buy&page=1&pageSize=100"
+    # stagger requests to avoid connection issues to nasdaq.com
+    time.sleep(randint(1, 3))
+    headers = {
+        'authority': 'www.nasdaq.com', 
+        'method': 'GET', 
+        'scheme': 'https',
+        'path': '/api/v1/screener?marketCap=Large,Medium,Small&analystConsensus=StrongBuy,Buy&page=1&pageSize=100',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'accept-encoding': 'gzip, deflate, br',
+        'accept-laguage': 'en-US,en;q=0.9',
+        'cache-control': 'no-cache',
+        'pragma': 'no-cache',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-site': 'none',
+        'sec-fetch-mode': 'navigate',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
+        }
+    try:
+        r = requests.get(url, headers=headers)
+    except (ConnectTimeout, HTTPError, ReadTimeout, Timeout, ConnectionError) as e:
+        print('CONNECTION ERROR: {}'.format(e))
+        time.sleep(randint(2, 5))
+        get_nasdaq_buystocks()
+    return r.json()
 
 
 def main():
@@ -208,28 +236,7 @@ def main():
 
             stock_info = []
 
-            url = "https://www.nasdaq.com/api/v1/screener?marketCap=Large,Medium,Small&analystConsensus=StrongBuy,Buy&page=1&pageSize=100"
-
-            # stagger requests to avoid connection issues to nasdaq.com
-            time.sleep(randint(0, 5))
-            headers = {
-                'authority': 'www.nasdaq.com', 
-                'method': 'GET', 
-                'scheme': 'https',
-                'path': '/api/v1/screener?marketCap=Large,Medium,Small&analystConsensus=StrongBuy,Buy&page=1&pageSize=100',
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                'accept-encoding': 'gzip, deflate, br',
-                'accept-laguage': 'en-US,en;q=0.9',
-                'cache-control': 'no-cache',
-                'pragma': 'no-cache',
-                'sec-fetch-dest': 'document',
-                'sec-fetch-site': 'none',
-                'sec-fetch-mode': 'navigate',
-                'upgrade-insecure-requests': '1',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
-                }
-            r = requests.get(url, headers=headers)
-            data = r.json()
+            data = get_nasdaq_buystocks()
 
             strong_buy_stocks = []
 
