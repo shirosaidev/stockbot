@@ -20,6 +20,8 @@ Buy time can bet set to:
 
 "buyatclose" - buy the stocks before market closes, and hold until next day, if stock price goes up enough sell, or sell at end of next market day
 
+## Slack workspace
+Join the conversation, get support, etc on [stocksight Slack](https://join.slack.com/t/stocksightworkspace/shared_invite/enQtNzk1ODI0NjA3MTM4LTA3ZDA0YzllOGNiM2I5ZjAzYWM2MjNmMjI0OTRlY2ZjYTk1NmM5YmEwMmMwOTE2OTNiMGZlNzdjZmZkM2RjM2U).
 
 ## Requirements
 
@@ -40,11 +42,19 @@ https://api.alpaca.markets (for live)
 https://paper-api.alpaca.markets (for paper)
 
 
-Install Alpaca python library:
+Install requirements Alpaca python library:
 
 ```sh
-pip3 install alpaca-trade-api
+pip3 install -r requirements.txt
 ```
+
+### Download
+
+```shell
+$ git clone https://github.com/shirosaidev/stockbot.git
+$ cd stockbot
+```
+[Download latest version](https://github.com/shirosaidev/stockbot/releases/latest)
 
 ## How to use
 

@@ -1,0 +1,13 @@
+# stockbot config
+# max price of symbol to buy
+STOCK_MAX_PRICE = 100
+# min price of symbol to buy
+STOCK_MIN_PRICE = 20
+# max number of different symbols to buy
+MAX_NUM_STOCKS = 20
+# number of shares to buy of each symbol
+NUM_SHARES = 5
+# what percent gain triggers to sell during the day
+SELL_PERCENT_GAIN = 3
+# how much money to start trading with
+START_EQUITY = 5000
