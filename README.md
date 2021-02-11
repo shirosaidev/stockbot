@@ -15,8 +15,12 @@ export APCA_API_SECRET_KEY=<secrect_key>
 export APCA_API_BASE_URL=url
 ```
 
+url set to:
+
 https://api.alpaca.markets (for live)
+
 https://paper-api.alpaca.markets (for paper)
+
 
 Install Alpaca python library:
 
