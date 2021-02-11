@@ -1,26 +1,32 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""stockbot.py - get recommended buy and strong buy stocks
+"""
+StockBot
+
+Get recommended buy and strong buy stocks
 daily from Nasdaq.com and get prices from Yahoo and determine
 which stocks moved the most the previous day, sort those by 
 largest movers (based on open/close $) and buy those stocks
 if they are going up. At the end of the market day, sell 
-any purchased stocks.
+any purchased stocks. Uses Alpaca for trading.
 
-Copyright (C) Chris Park 2020. All rights reserved.
+Copyright (C) Chris Park (shirosai) 2021
+stockbot is released under the Apache 2.0 license. See
+LICENSE for the full license text.
 """
 
 import os, sys
 import csv
 import requests
-from requests import ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError
 import urllib.request
-import csv
 import time
+import optparse
+from requests import ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError
 from datetime import date, datetime, timedelta
 from pytz import timezone
 from random import randint
-import collections
+
+from config import *
+
 import alpaca_trade_api as tradeapi
 from alpaca_trade_api.rest import APIError
 
@@ -30,15 +36,11 @@ __version__ = STOCKBOT_VERSION
 
 TZ = timezone('America/New_York')
 
-api = tradeapi.REST('PKJUK5SQ6REUFTCV7QJC', 'dsm/Ywauqgx8YUEZJXa/lNREMds6fly745P3FT13', 'https://paper-api.alpaca.markets')
+APIKEYID = os.getenv('APCA_API_KEY_ID')
+APISECRETKEY = os.getenv('APCA_API_SECRET_KEY')
+APIBASEURL = os.getenv('APCA_API_BASE_URL')
 
-STOCK_MAX_PRICE = 100
-STOCK_MIN_PRICE = 20
-MAX_NUM_STOCKS = 20
-NUM_SHARES = 5
-SELL_PERCENT_GAIN = 3
-
-START_EQUITY = 5000
+api = tradeapi.REST(APIKEYID, APISECRETKEY, APIBASEURL)
 
 
 def get_stock_info(stock):
@@ -175,41 +177,48 @@ def alpaca_order(symbol, side, _type='market', time_in_force='day'):
 
 
 def main():
+    usage = """Usage: stockbot.py [-h] [-t tradealgo] [-b startbuytime]
+
+StockBot v{0}
+Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option('-t', '--tradealgo', default='rating', 
+                        help='algo to use for trading, options are rating, lowtomarket, or moved, default "%default"')
+    parser.add_option('-b', '--startbuytime', default='buyatopen', 
+                        help='when to starting buying stocks, options are buyatopen, and buyatclose, default "%default"')
+    options, args = parser.parse_args()
+    
     # print banner
     banner = """\033[32m                                
     _____ _           _   _____     _   
     |   __| |_ ___ ___| |_| __  |___| |_ 
     |__   |  _| . |  _| '_| __ -| . |  _|
     |_____|_| |___|___|_,_|_____|___|_|  
-    StockBot v{0}    +$ = :)  -$ = ;(\033[0m\n""".format(STOCKBOT_VERSION)
+    StockBot v{0}    +$ = :)  -$ = ;(\n
+    https://github.com/shirosaidev/stockbot\033[0m\n\n""".format(STOCKBOT_VERSION)
 
     print(banner)
-    try:
-        tradealgo = sys.argv[1]
-        if tradealgo not in ['rating', 'lowtomarket', 'moved']:
-            print('required arg 1 missing, use rating, lowtomarket, or moved')
-            sys.exit(1)
-    except IndexError:
-        print('required arg 1 missing, use rating, lowtomarket, or moved')
-        sys.exit(0)
-    try:
-        startbuytime = sys.argv[2]
-        if startbuytime not in ['buyatclose', 'buyatopen']:
-            print('required arg 2 missing, use buyatclose, or buyatopen')
-            sys.exit(1)
-    except IndexError:
-        print('required arg 2 missing, use buyatclose, or buyatopen')
-        sys.exit(0)
+    
+    tradealgo = options.tradealgo
+    startbuytime = options.startbuytime
+
     print('Trade algo: {}'.format(tradealgo))
     print('Buy time: {}'.format(startbuytime))
 
     # Get our account information.
     account = api.get_account()
+    
+    print('Account info:')
+    print(account)
 
     # Check if our account is restricted from trading.
     if account.trading_blocked:
         print('Account is currently restricted from trading.')
         sys.exit(0)
+        
+    # List current positions
+    print('Current positions:')
+    print(api.list_positions())
 
     equity = START_EQUITY
 
