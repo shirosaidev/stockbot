@@ -58,6 +58,12 @@ $ cd stockbot
 
 ## How to use
 
+Copy sample config:
+
+```sh
+cp config.py.sample config.py
+```
+
 Edit config.py and adjust settings as needed.
 
 Run stockbot:
