@@ -2,12 +2,7 @@
 """
 StockBot
 
-Get recommended buy and strong buy stocks
-daily from Nasdaq.com and get prices from Yahoo and determine
-which stocks moved the most the previous day, sort those by 
-largest movers (based on open/close $) and buy those stocks
-if they are going up. At the end of the market day, sell 
-any purchased stocks. Uses Alpaca for trading.
+https://github.com/shirosaidev/stockbot
 
 Copyright (C) Chris Park (shirosai) 2021
 stockbot is released under the Apache 2.0 license. See
