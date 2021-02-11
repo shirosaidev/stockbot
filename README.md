@@ -3,6 +3,24 @@ Alpaca algo stock trading bot
 
 Get recommended buy and strong buy stocks daily from Nasdaq.com and get prices from Yahoo and determine which stocks moved the most the previous day, sort those by largest movers (based on open/close $) and buy those stocks if they are going up. When the stock price goes up enough, or at the end of the market day, sell any purchased stocks.
 
+
+## Options
+
+Trade algo can be set to:
+
+"rating" - uses various Nasdaq.com metrics for stock picks
+
+"lowtomarket" - uses low price to market price 
+
+"moved" - uses which stock moved the most in past week
+
+Buy time can bet set to:
+
+"buyatopen" - buy the stocks when market opens and sell when price increases enough or at end of day, whatever comes first
+
+"buyatclose" - buy the stocks before market closes, and hold until next day, if stock price goes up enough sell, or sell at end of next market day
+
+
 ## Requirements
 
 Uses Alpaca https://alpaca.markets/ for trading. You will need an account with Alpaca to use stockbot.
@@ -39,18 +57,3 @@ python3 stockbot.py -t <tradealgo> -b <buytime>
 ```
 
 Stockbot runs in an infinite loop and does daily trading. To stop it, press ctrl+c. Stocks will manually have to be sold on Alpaca web site since stockbot does not keep track of stocks when you exit it.
-
-Trade algo can be set to:
-
-"rating" - uses various Nasdaq.com metrics for stock picks
-
-"lowtomarket" - uses low price to market price 
-
-"moved" - uses which stock moved the most in past week
-
-
-Buy time can bet set to:
-
-"buyatopen" - buy the stocks when market opens and sell when price increases enough or at end of day, whatever comes first
-
-"buyatclose" - buy the stocks before market closes, and hold until next day, if stock price goes up enough sell, or sell at end of next market day
