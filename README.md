@@ -30,11 +30,15 @@ pip3 install alpaca-trade-api
 
 ## How to use
 
-Edit config.py and adjust as needed
+Edit config.py and adjust settings as needed.
+
+Run stockbot:
 
 ```sh
 python3 stockbot.py -t <tradealgo> -b <buytime>
 ```
+
+Stockbot runs in an infinite loop and does daily trading. To stop it, press ctrl+c. Stocks will manually have to be sold on Alpaca web site since stockbot does not keep track of stocks when you exit it.
 
 Trade algo can be set to:
 
