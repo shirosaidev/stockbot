@@ -9,9 +9,11 @@ Uses Alpaca https://alpaca.markets/ for trading. You will need an account with A
 
 Set env vars for Alpaca authentication api keys:
 
+```sh
 export APCA_API_KEY_ID=<key_id>
 export APCA_API_SECRET_KEY=<secrect_key>
 export APCA_API_BASE_URL=url
+```
 
 https://api.alpaca.markets (for live)
 https://paper-api.alpaca.markets (for paper)
