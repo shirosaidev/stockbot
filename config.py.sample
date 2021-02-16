@@ -1,4 +1,6 @@
 # stockbot config
+# url to nasdaq api
+NASDAQ_API_URL = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=100&marketcap=large|mid|small&recommendation=strong_buy|buy"
 # max price of symbol to buy
 STOCK_MAX_PRICE = 100
 # min price of symbol to buy

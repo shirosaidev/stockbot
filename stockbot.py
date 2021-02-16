@@ -19,6 +19,7 @@ from requests import ReadTimeout, ConnectTimeout, HTTPError, Timeout, Connection
 from datetime import date, datetime, timedelta
 from pytz import timezone
 from random import randint
+from urllib.parse import urlparse
 
 from config import *
 
@@ -26,7 +27,7 @@ import alpaca_trade_api as tradeapi
 from alpaca_trade_api.rest import APIError
 
 
-STOCKBOT_VERSION = '0.1-b.1'
+STOCKBOT_VERSION = '0.1-b.2'
 __version__ = STOCKBOT_VERSION
 
 TZ = timezone('America/New_York')
@@ -128,14 +129,16 @@ def get_nasdaq_listed():
 
 
 def get_nasdaq_buystocks():
-    url = "https://www.nasdaq.com/api/v1/screener?marketCap=Large,Medium,Small&analystConsensus=StrongBuy,Buy&page=1&pageSize=100"
+    # api used by https://www.nasdaq.com/market-activity/stocks/screener
+    url = NASDAQ_API_URL
+    parsed_uri = urlparse(url)
     # stagger requests to avoid connection issues to nasdaq.com
     time.sleep(randint(1, 3))
     headers = {
-        'authority': 'www.nasdaq.com', 
+        'authority': parsed_uri.netloc, 
         'method': 'GET', 
         'scheme': 'https',
-        'path': '/api/v1/screener?marketCap=Large,Medium,Small&analystConsensus=StrongBuy,Buy&page=1&pageSize=100',
+        'path': parsed_uri.path + '?' + parsed_uri.params,
         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
         'accept-encoding': 'gzip, deflate, br',
         'accept-laguage': 'en-US,en;q=0.9',
