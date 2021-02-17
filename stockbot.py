@@ -180,8 +180,8 @@ def main():
 StockBot v{0}
 Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
     parser = optparse.OptionParser(usage=usage)
-    parser.add_option('-t', '--tradealgo', default='rating', 
-                        help='algo to use for trading, options are rating, lowtomarket, or moved, default "%default"')
+    parser.add_option('-t', '--tradealgo', default='moved', 
+                        help='algo to use for trading, options are moved or lowtomarket, default "%default"')
     parser.add_option('-b', '--startbuytime', default='buyatopen', 
                         help='when to starting buying stocks, options are buyatopen, and buyatclose, default "%default"')
     options, args = parser.parse_args()
@@ -248,8 +248,8 @@ Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
 
     while True:
 
-        # get the best rated buy and strong buy stock from Nasdaq.com and 
-        # sort them by the best rated stocks using one of the chosen algo
+        # get the best buy and strong buy stock from Nasdaq.com and 
+        # sort them by the best stocks using one of the chosen algo
 
         if datetime.today().weekday() in [0,1,2,3,4] and datetime.now(tz=TZ).hour == get_stocks_h \
             and datetime.now(tz=TZ).minute == get_stocks_m:
@@ -263,66 +263,38 @@ Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
 
             strong_buy_stocks = []
 
-            for d in data['data']:
-                # Get daily price data for stock ticker over the last 5 trading days.
-                barset = api.get_barset(d['ticker'], 'day', limit=5)
-                if not barset[d['ticker']]:
-                    print('stock ticker {} not found'.format(d['ticker']))
+            for d in data['data']['table']['rows']:
+                # Get daily price data for stock symbol over the last 5 trading days.
+                barset = api.get_barset(d['symbol'], 'day', limit=5)
+                if not barset[d['symbol']]:
+                    print('stock symbol {} not found'.format(d['symbol']))
                     continue
-                stock_bars = barset[d['ticker']]
+                stock_bars = barset[d['symbol']]
 
                 # See how much stock ticker moved in that timeframe.
                 week_open = stock_bars[0].o
                 week_close = stock_bars[-1].c
                 percent_change = round((week_close - week_open) / week_open * 100, 3)
 
-                print('{} moved {}% over the last 5 days'.format(d['ticker'], percent_change))
-
-                rating = 0
-                if d['analystConsensus'] == 'StrongBuy':
-                    rating += 1
-                if d['bestAnalystConsensus'] == 'StrongBuy':
-                    rating += 1
-                if 'Buy' in d['newsSentimentData']['label']:
-                    rating += 1
-                try:
-                    if 'Buy' in d['mediaBuzzData']['label']:
-                        rating += 1
-                except Exception:
-                    pass
-                try:
-                    if d['hedgeFundSentimentData']['label'] == 'Positive':
-                        rating += 1
-                except Exception:
-                    pass
-                try:
-                    if 'Buy' in d['investorSentimentData']['label']:
-                        rating += 1
-                except Exception:
-                    pass
-                try:
-                    if d['bloggerSentimentData']['label'] == 'Bullish':
-                        rating += 1
-                except Exception:
-                    pass
+                print('{} moved {}% over the last 5 days'.format(d['symbol'], percent_change))
                 
-                strong_buy_stocks.append({'ticker': d['ticker'], 'company': d['company'], 'rating': rating, 
+                strong_buy_stocks.append({'symbol': d['symbol'], 'company': d['company'], 
                                             'moved': percent_change})
 
             for stock_item in strong_buy_stocks:
-                stock = stock_item['ticker']
+                stock = stock_item['symbol']
                 #print('DEBUG', stock)
                 sys.stdout.write('.')
                 sys.stdout.flush()
 
                 data = get_stock_info(stock)
                 if not data:
-                    print('stock ticker {} not found in yahoo finance'.format(stock))
+                    print('stock symbol {} not found in yahoo finance'.format(stock))
                     continue
                 # check which market it's in
                 exchange_name = data['chart']['result'][0]['meta']['exchangeName']
                 if exchange_name not in ['NYQ', 'NMS']:
-                        print('stock ticker {} in different exchange {}'.format(stock, exchange_name))
+                        print('stock symbol {} in different exchange {}'.format(stock, exchange_name))
                         continue
 
                 try:
@@ -350,19 +322,17 @@ Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
                 change_low_to_market_price = round(stock_price - stock_low, 3)
 
                 stock_info.append({'symbol': stock, 'company': stock_item['company'], 
-                                    'rating': stock_item['rating'], 'market_price': stock_price, 
-                                    'low': stock_low, 'high': stock_high, 'volume': stock_volume,
+                                    'market_price': stock_price, 'low': stock_low, 
+                                    'high': stock_high, 'volume': stock_volume,
                                     'change_low_to_high': change_low_to_high,
                                     'change_low_to_market_price': change_low_to_market_price,
                                     'moved': stock_item['moved']})
             
             # sort stocks
-            if tradealgo == 'lowtomarket':
-                biggest_movers = sorted(stock_info, key = lambda i: i['change_low_to_market_price'], reverse = True)
-            elif tradealgo == 'rating':
-                biggest_movers = sorted(stock_info, key = lambda i: i['rating'], reverse = True)
-            elif tradealgo == 'moved':
+            if tradealgo == 'moved':
                 biggest_movers = sorted(stock_info, key = lambda i: i['moved'], reverse = True)
+            elif tradealgo == 'lowtomarket':
+                biggest_movers = sorted(stock_info, key = lambda i: i['change_low_to_market_price'], reverse = True)
 
             stock_picks = biggest_movers[0:MAX_NUM_STOCKS]
             print('\n')
