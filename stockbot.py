@@ -278,7 +278,7 @@ Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
 
                 print('{} moved {}% over the last 5 days'.format(d['symbol'], percent_change))
                 
-                strong_buy_stocks.append({'symbol': d['symbol'], 'company': d['company'], 
+                strong_buy_stocks.append({'symbol': d['symbol'], 'company': d['name'], 
                                             'moved': percent_change})
 
             for stock_item in strong_buy_stocks:
