@@ -181,7 +181,7 @@ StockBot v{0}
 Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('-t', '--tradealgo', default='moved', 
-                        help='algo to use for trading, options are moved or lowtomarket, default "%default"')
+                        help='algo to use for trading, options are moved, lowtomarket or lowtohigh, default "%default"')
     parser.add_option('-b', '--startbuytime', default='buyatopen', 
                         help='when to starting buying stocks, options are buyatopen, and buyatclose, default "%default"')
     options, args = parser.parse_args()
@@ -295,8 +295,8 @@ Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
                     # check which market it's in
                     exchange_name = data['chart']['result'][0]['meta']['exchangeName']
                     if exchange_name not in ['NYQ', 'NMS']:
-                            print('stock symbol {} in different exchange {}'.format(stock, exchange_name))
-                            continue
+                        print('stock symbol {} in different exchange {}'.format(stock, exchange_name))
+                        continue
 
                     try:
                         stock_high = round(data['chart']['result'][0]['indicators']['quote'][0]['high'][1], 2)
@@ -320,20 +320,22 @@ Alpaca algo stock trading bot.""".format(STOCKBOT_VERSION)
                     if stock_price > STOCK_MAX_PRICE or stock_price < STOCK_MIN_PRICE:
                         continue
 
-                    change_low_to_market_price = round(stock_price - stock_low, 3)
+                    change_low_to_market = round(stock_price - stock_low, 3)
 
                     stock_info.append({'symbol': stock, 'company': stock_item['company'], 
                                         'market_price': stock_price, 'low': stock_low, 
                                         'high': stock_high, 'volume': stock_volume,
                                         'change_low_to_high': change_low_to_high,
-                                        'change_low_to_market_price': change_low_to_market_price,
+                                        'change_low_to_market': change_low_to_market,
                                         'moved': stock_item['moved']})
                 
                 # sort stocks
                 if tradealgo == 'moved':
                     biggest_movers = sorted(stock_info, key = lambda i: i['moved'], reverse = True)
                 elif tradealgo == 'lowtomarket':
-                    biggest_movers = sorted(stock_info, key = lambda i: i['change_low_to_market_price'], reverse = True)
+                    biggest_movers = sorted(stock_info, key = lambda i: i['change_low_to_market'], reverse = True)
+                elif tradealgo == 'lowtohigh':
+                    biggest_movers = sorted(stock_info, key = lambda i: i['change_low_to_high'], reverse = True)
 
                 stock_picks = biggest_movers[0:MAX_NUM_STOCKS]
                 print('\n')
