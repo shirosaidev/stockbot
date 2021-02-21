@@ -8,7 +8,7 @@ Get recommended buy and strong buy stocks daily from Nasdaq.com and get prices f
 
 Trade algo can be set to:
 
-"moved" - uses which stock moved the most in past week (default)
+"moved" - uses which stock moved the most in past 5 market days (default)
 
 "lowtomarket" - uses low price to market price 
 
