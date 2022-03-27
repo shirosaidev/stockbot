@@ -1,6 +1,11 @@
 # stockbot
 Alpaca algo stock trading bot
 
+[![License](https://img.shields.io/github/license/shirosaidev/stockbot.svg?label=License&maxAge=86400)](./LICENSE)
+[![Release](https://img.shields.io/github/release/shirosaidev/stockbot.svg?label=Release&maxAge=60)](https://github.com/shirosaidev/stockbot/releases/latest)
+[![Sponsor Patreon](https://img.shields.io/badge/Sponsor%20%24-Patreon-brightgreen.svg)](https://www.patreon.com/shirosaidev)
+[![Donate PayPal](https://img.shields.io/badge/Donate%20%24-PayPal-brightgreen.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=CLF223XAS4W72)
+
 Get recommended buy and strong buy stocks daily from Nasdaq.com and get prices from Yahoo and determine which stocks moved the most the previous n days, sort those by largest movers (based on open/close $) and buy those stocks if they are going up. When the stock price goes up enough, or at the end of the market day, sell any purchased stocks.
 
 
